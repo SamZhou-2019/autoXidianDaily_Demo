@@ -13,7 +13,7 @@ import Settings
 def report():
     # % 数据部分 %
     data = {
-        "sfzx": "0",  # 是否在校：否0是1
+        "sfzx": "1",  # 是否在校：否0是1
         "sfzgn": "1",  # 所在地点：中国大陆为1
         "area": bytes(Settings.province, 'utf-8') + b'\x20' + bytes(Settings.city, 'utf-8') + b'\x20' + bytes(
             Settings.area,
