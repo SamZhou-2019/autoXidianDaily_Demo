@@ -1,0 +1,14 @@
+{
+    "这里填名字1": {
+        "email_address": "xxx@qq.com",
+        "email_authorization": "这里填授权码",
+        "email_server": "smtp.qq.com",
+        "email_port": 465
+    },
+    "这里填名字2": {
+        "email_address": "xxx@163.com",
+        "email_authorization": "这里填授权码",
+        "email_server": "smtp.qq.com",
+        "email_port": 994
+    }
+}
