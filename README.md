@@ -1,8 +1,6 @@
 # 自动填写晨午晚检及疫情通程序模板
 
-fork自 https://github.com/SamZhou-2019/autoXidianDaily_Demo
-
-感谢大佬学长
+感谢大佬学长的馈赠
 
 
 ## 使用方法：
