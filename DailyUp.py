@@ -1,48 +1,64 @@
 # 晨午晚检填写程序
 import json
-import time
-
+import datetime
 from EmailSender import send_email
-from Verifi import conn
-
-import MainFunc
 import Settings
+import geo_pool_append
 
+T = str(datetime.datetime.now() )[:-7]  # 时间
 
-def up(subject):
-    # % 数据部分 %
-    data = {
-        "ymtys": "0",  # 一码通颜色
-        "sfzx": "1",  # 是否在校
-        "tw": "2",  # 体温范围：36.5°C~36.9°C
-        "area": bytes(Settings.province, 'utf-8') + b'\x20' + bytes(Settings.city, 'utf-8') + b'\x20' + bytes(
-            Settings.area,
-            'utf-8'),  # 省市区
-        "city": bytes(Settings.city, 'utf-8'),  # 市
-        "province": bytes(Settings.province, 'utf-8'),  # 省
-        "address": bytes(Settings.address, 'utf-8'),  # 具体地点
-        "sfcyglq": "0",  # 是否处于隔离期
-        "sfyzz": "0",  # 是否出现乏力、干咳、呼吸困难等症状
-        "qtqk": "",  # 其他情况
-        "askforleave": "0"
-    }
+UPLOAD_URL = "https://xxcapp.xidian.edu.cn/xisuncov/wap/open-report/save"   # 填报时用的url
+
+INFO_URL = "https://xxcapp.xidian.edu.cn/xisuncov/wap/open-report"  # 查看填报信息时用的url
+
+def up(subject, conn, name):
 
     result_main = conn.post(
-        url="https://xxcapp.xidian.edu.cn/xisuncov/wap/open-report/save",
-        data=data  # 填写数据
+        url=UPLOAD_URL,
+        data=Settings.cwwj_data  # 填写数据
     )
 
-    # @ 错误2：数据发送错误 @
+    # 数据发送错误
     if result_main.status_code != 200:
-        print("数据发送错误，错误代码：", result_main.status_code)
-        send_email(subject, MainFunc.BJT + '\n' + '数据发送错误，错误代码：' + result_main.status_code)
+        send_email(subject, T + '\n' + '数据发送错误，错误代码：' + result_main.status_code, name)
         exit()
-    else:
-        try:
-            # @ 程序完成 @
-            result_json = json.loads(result_main.text)
-            print(MainFunc.BJT + '\n程序完成。\n' + str(result_json['e']) + '-' + result_json['m'])
-            send_email(subject, MainFunc.BJT + '\n程序完成。\n' + str(result_json['e']) + '-' + result_json['m'])
-        except json.decoder.JSONDecodeError:
-            print('晨午晚检填报程序数据发送部分出现异常。请检查是否按照步骤进行配置。')
-            send_email(subject, MainFunc.BJT + '晨午晚检填报程序数据发送部分出现异常。请检查是否按照步骤进行配置。')
+
+    try:
+        result_json = json.loads(result_main.text)  # 拿到返回信息
+
+        # 异常情况
+        if result_json['e'] != 0:
+            info = 'error: ' + str(result_json['m'])
+
+            # 如果检测到晨午晚检已手动填写，脚本将获取到此次填写的位置信息并将其加入到'Geo_pool.json'中
+            if info == 'error: 您已上报过':
+                respond = conn.get(INFO_URL)
+                info = json.loads(respond.text)["d"].get('info').get('geo_api_info')
+                geo_pool_append.add(info)
+                send_email(subject, f'检测到{name}手动填写，位置信息已加入Geo_pool', Settings.Admin)
+            
+            # 其他错误情况
+            else:
+                send_email(subject, info, name)
+        
+        # 上报成功
+        else:
+            if Settings.Admin == name:      # 给管理员发送日志
+                respond = conn.get(INFO_URL)
+                info = json.loads(respond.text)["d"].get('info')
+                msg = info.pop("geo_api_info", "no geo info")   # 除去位置信息，内容太多
+                if msg == 'no geo info':
+                    info['geo_api_info'] = 'No Position!'
+                json_info = json.dumps(info, indent=4, sort_keys=False, ensure_ascii=False)     # 生成json格式的日志
+                send_email(subject, T + '\n' + f'{subject}填写完成。\n {json_info}', name)
+            else:
+                send_email(subject, T + '\n' + f'{subject}填写完成。', name)
+    except json.decoder.JSONDecodeError:
+        print('晨午晚检填报程序数据发送部分出现异常。请检查是否按照步骤进行配置。')
+        send_email(subject, T + '晨午晚检填报程序数据发送部分出现异常。请检查是否按照步骤进行配置。', name)
+
+
+if __name__ == '__main__':
+    # from Verifi import conn
+    # up('wj', conn.get(Settings.Admin), Settings.Admin)
+    pass
